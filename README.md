@@ -179,4 +179,7 @@ curl -X POST http://localhost:7001/api/data   -H "Content-Type: application/json
 ---
 
 ## License
-MIT © Juan Camilo Perdomo Vasquez, Estefania Muñoz Marulanda
+
+This project is licensed under the Apache License 2.0.
+
+See the LICENSE file for details.
