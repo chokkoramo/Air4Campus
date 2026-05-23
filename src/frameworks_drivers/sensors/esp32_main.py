@@ -9,10 +9,12 @@ from dht11_reader import DHT11Reader
 from esp32_payload import ESP32PayloadBuilder
 from mq135_reader import MQ135Reader
 
+import dotenv
+dotenv.load_dotenv()
 
-WIFI_SSID = "TU_RED_WIFI"
-WIFI_PASSWORD = "TU_PASSWORD_WIFI"
-API_URL = "http://TU_SERVIDOR:7001/receive_sensor_data"
+WIFI_SSID = dotenv.get_key(".env", "SSID_WIFI")
+WIFI_PASSWORD = dotenv.get_key(".env", "PASSWORD_WIFI")
+API_URL = "https://pm-iot.onrender.com/receive_sensor_data"
 
 DEVICE_ID = "esp32_aula_01"
 CLASSROOM_ID = "aula_101"
