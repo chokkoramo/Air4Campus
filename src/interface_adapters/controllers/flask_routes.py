@@ -72,8 +72,18 @@ def create_routes(
 
         try:
             conditions = sensor_adapter.to_classroom_conditions(payload)
-            inserted_id = receive_sensor_data.execute(conditions)
-            return jsonify({"ok": True, "id": inserted_id}), 201
+            result = receive_sensor_data.execute(conditions)
+            return jsonify(
+                {
+                    "ok": True,
+                    "id": result.inserted_id,
+                    "comfort": {
+                        "status": result.status,
+                        "recommendations": result.recommendations,
+                        "alerts": result.alerts,
+                    },
+                }
+            ), 201
 
         except PyMongoError as exc:
             return jsonify({"ok": False, "error": str(exc)}), 503

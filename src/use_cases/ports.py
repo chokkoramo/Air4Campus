@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Protocol
 
-from entities.models import ClassroomConditions
+from entities.models import ClassroomConditions, ComfortAnalysis
 
 
 class SensorReadingRepository(Protocol):
@@ -14,5 +14,5 @@ class SensorReadingRepository(Protocol):
     def find_recent_readings(self, query: dict[str, Any], limit: int) -> list[dict[str, Any]]:
         ...
 
-    def insert(self, conditions: ClassroomConditions) -> str:
+    def insert(self, conditions: ClassroomConditions, analysis: ComfortAnalysis | None = None) -> str:
         ...

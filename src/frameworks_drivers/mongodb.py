@@ -4,7 +4,19 @@ from typing import Any
 
 from pymongo import MongoClient
 
-from entities.models import ClassroomConditions
+from entities.models import ClassroomConditions, ComfortAnalysis
+
+
+class DatabaseConnection:
+    _client: MongoClient | None = None
+
+    @classmethod
+    def get_client(cls) -> MongoClient:
+        if cls._client is None:
+            mongo_url = os.environ.get("MONGO_URL", "mongodb://localhost:27017/")
+            cls._client = MongoClient(mongo_url, serverSelectionTimeoutMS=5000)
+
+        return cls._client
 
 
 class MongoSensorReadingRepository:
@@ -24,15 +36,22 @@ class MongoSensorReadingRepository:
     def find_recent_readings(self, query: dict[str, Any], limit: int) -> list[dict[str, Any]]:
         return list(self.collection.find(query).sort("ts", -1).limit(limit))
 
-    def insert(self, conditions: ClassroomConditions) -> str:
-        result = self.collection.insert_one(conditions.to_document())
+    def insert(self, conditions: ClassroomConditions, analysis: ComfortAnalysis | None = None) -> str:
+        document = conditions.to_document()
+        if analysis:
+            document["comfort_analysis"] = {
+                "status": analysis.status.value,
+                "recommendations": analysis.recommendations,
+                "alerts": analysis.alerts,
+            }
+
+        result = self.collection.insert_one(document)
         return str(result.inserted_id)
 
 
 def create_sensor_repository() -> MongoSensorReadingRepository:
-    mongo_url = os.environ.get("MONGO_URL", "mongodb://localhost:27017/")
     db_name = os.environ.get("MONGO_DB", "test")
 
-    client = MongoClient(mongo_url, serverSelectionTimeoutMS=5000)
+    client = DatabaseConnection.get_client()
     db = client[db_name]
     return MongoSensorReadingRepository(db["data"])

@@ -24,4 +24,5 @@ class JsonPresenter:
         return {
             "status": analysis.status.value,
             "recommendations": analysis.recommendations,
+            "alerts": analysis.alerts,
         }

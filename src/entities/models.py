@@ -4,6 +4,11 @@ from enum import Enum
 from typing import Any
 
 
+class ClassroomType(str, Enum):
+    THEORETICAL = "theoretical"
+    LABORATORY = "laboratory"
+
+
 class ComfortStatus(str, Enum):
     OPTIMAL = "optimal"
     REGULAR = "regular"
@@ -36,11 +41,15 @@ class ClassroomConditions:
     temperature: SensorValue
     humidity: SensorValue
     air_quality: SensorValue
+    classroom_id: str | None = None
+    classroom_type: ClassroomType = ClassroomType.THEORETICAL
 
     def to_document(self) -> dict[str, Any]:
         return {
             "ts": self.ts,
             "device_id": self.device_id,
+            "classroom_id": self.classroom_id,
+            "classroom_type": self.classroom_type.value,
             "temperature": self.temperature.to_document(),
             "humidity": self.humidity.to_document(),
             "air_quality": self.air_quality.to_document(),
@@ -51,3 +60,4 @@ class ClassroomConditions:
 class ComfortAnalysis:
     status: ComfortStatus
     recommendations: list[str]
+    alerts: list[str]
