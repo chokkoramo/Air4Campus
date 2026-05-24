@@ -156,6 +156,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+src/frameworks_drivers/sensors/config.py
 
 # Spyder project settings
 .spyderproject
