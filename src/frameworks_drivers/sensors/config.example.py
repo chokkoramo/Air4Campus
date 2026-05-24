@@ -1,0 +1,13 @@
+WIFI_SSID = "TU_RED_WIFI"
+WIFI_PASSWORD = "TU_PASSWORD_WIFI"
+
+API_URL = "https://pm-iot.onrender.com/receive_sensor_data"
+
+DEVICE_ID = "esp32_aula_01"
+CLASSROOM_ID = "aula_101"
+CLASSROOM_TYPE = "theoretical"
+
+DHT11_PIN = 14
+MQ135_ADC_PIN = 33
+MQ135_CONVERSION_FACTOR = 1.0
+READ_INTERVAL_SECONDS = 30
