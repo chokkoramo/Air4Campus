@@ -15,22 +15,7 @@ class JsonPresenter:
             ts = item.get("ts")
             if hasattr(ts, "timestamp"):
                 item["ts"] = int(ts.timestamp() * 1000)
-
-            if "sensors" in item and isinstance(item["sensors"], list):
-                for sensor in item["sensors"]:
-                    if "temperature" in sensor:
-                        item["temperature"] = sensor.get("temperature")
-                    if "humidity" in sensor:
-                        item["humidity"] = sensor.get("humidity")
-                    if "air_quality" in sensor:
-                        item["air_quality"] = sensor.get("air_quality")
-                
-                item.pop("sensors", None)
             
-            item.setdefault("temperature", None)
-            item.setdefault("humidity", None)
-            item.setdefault("air_quality", None)
-
             data.append(item)
 
         return data
