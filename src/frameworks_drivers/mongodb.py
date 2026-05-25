@@ -1,10 +1,29 @@
 import os
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from pymongo import MongoClient
 
 from entities.models import ClassroomConditions, ComfortAnalysis
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+ENV_FILE = ROOT_DIR / ".env"
+
+try:
+    from dotenv import load_dotenv
+except ModuleNotFoundError:
+    load_dotenv = None
+
+if load_dotenv:
+    load_dotenv(ENV_FILE)
+else:
+    for line in ENV_FILE.read_text().splitlines() if ENV_FILE.exists() else []:
+        if not line or line.lstrip().startswith("#") or "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip().strip("\"'"))
 
 
 class DatabaseConnection:
@@ -13,7 +32,7 @@ class DatabaseConnection:
     @classmethod
     def get_client(cls) -> MongoClient:
         if cls._client is None:
-            mongo_url = os.environ.get("MONGO_URL", "mongodb://localhost:27017/")
+            mongo_url = _env("MONGO_URL", "mongodb://localhost:27017/")
             cls._client = MongoClient(mongo_url, serverSelectionTimeoutMS=5000)
 
         return cls._client
@@ -48,10 +67,22 @@ class MongoSensorReadingRepository:
         result = self.collection.insert_one(document)
         return str(result.inserted_id)
 
+    def ping(self) -> dict[str, Any]:
+        self.collection.database.client.admin.command("ping")
+        return {
+            "database": self.collection.database.name,
+            "collection": self.collection.name,
+        }
+
 
 def create_sensor_repository() -> MongoSensorReadingRepository:
-    db_name = os.environ.get("MONGO_DB", "test")
+    db_name = _env("MONGO_DB", "test")
 
     client = DatabaseConnection.get_client()
     db = client[db_name]
     return MongoSensorReadingRepository(db["data"])
+
+
+def _env(name: str, default: str) -> str:
+    value = os.environ.get(name, default).strip()
+    return value.strip("\"'")

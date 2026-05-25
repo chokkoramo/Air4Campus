@@ -8,9 +8,9 @@
 
 ## Overview
 
-Air4Campus is a lightweight IoT system for monitoring indoor classroom conditions. ESP32 sensor nodes collect temperature, humidity, and air-quality readings, send them to a Flask API, and the API stores normalized readings in MongoDB for dashboards, querying, and comfort analysis.
+Air4Campus is a lightweight IoT system for monitoring indoor classroom conditions. ESP32 sensor nodes collect temperature, humidity, and air-quality readings, send them to a Flask API, and the API stores normalized readings in MongoDB Atlas for dashboards, querying, and comfort analysis.
 
-The backend supports local MongoDB, MongoDB Atlas, Docker Compose, Render deployment, and Grafana dashboards through JSON-compatible endpoints.
+The backend writes to the MongoDB database configured in `MONGO_URL`. In the normal project setup this is MongoDB Atlas, so every reading received by the Flask API is sent to Atlas. Local MongoDB is only useful for development if `MONGO_URL` is changed intentionally.
 
 ## Main Features
 
@@ -36,7 +36,7 @@ The backend supports local MongoDB, MongoDB Atlas, Docker Compose, Render deploy
 ## Architecture
 
 ```text
-ESP32 -> Flask API -> MongoDB Atlas/local MongoDB -> Grafana/API clients
+ESP32 -> Flask API -> MongoDB Atlas -> Grafana/API clients
 ```
 
 The source code follows a layered structure:
@@ -51,6 +51,7 @@ The source code follows a layered structure:
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | `GET` | `/` | Health check. Returns `OK`. |
+| `GET` | `/health/db` | Verifies the MongoDB Atlas connection and returns the active database and collection. |
 | `POST` | `/receive_sensor_data` | Stores a sensor reading and returns comfort analysis. |
 | `GET`/`POST` | `/json_api_data` | Returns recent readings. Optional `sensor` and `limit` filters. |
 | `POST` | `/search` | Returns available sensor labels for dashboard discovery. |
@@ -149,7 +150,7 @@ FLASK_ENV=development
 PORT=7001
 ```
 
-For local Docker MongoDB, use a URL like:
+Only for local development, you can point `MONGO_URL` to the Docker MongoDB service instead of Atlas:
 
 ```env
 MONGO_URL=mongodb://admin:admin123@mongo:27017/air4campus?authSource=admin
@@ -191,8 +192,8 @@ docker-compose logs -f web
 Services:
 
 - Flask API: `http://localhost:7001`
-- MongoDB: `localhost:27017`
-- Mongo Express: `http://localhost:8081`
+- MongoDB: `localhost:27017` only if you intentionally use local MongoDB instead of Atlas
+- Mongo Express: `http://localhost:8081` only for inspecting the optional local MongoDB container
 - Grafana: `http://localhost:3000`
 
 ## Send a Reading

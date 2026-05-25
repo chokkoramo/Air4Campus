@@ -52,7 +52,7 @@ def send_payload(payload):
             data=ujson.dumps(payload),
             headers={"Content-Type": "application/json"},
         )
-        _ = response.text 
+        print("Respuesta API:", response.status_code, response.text)
     finally:
         if response is not None:
             response.close()

@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 
 from frameworks_drivers.mongodb import create_sensor_repository
 from interface_adapters.controllers.flask_routes import create_routes
@@ -30,5 +30,12 @@ def create_app() -> Flask:
             presenter=presenter,
         )
     )
+
+    @app.route("/health/db")
+    def database_health():
+        try:
+            return jsonify({"ok": True, **repository.ping()}), 200
+        except Exception as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 503
 
     return app
