@@ -1,185 +1,294 @@
-# Air4Campus — IoT Air Quality Monitoring System
+# Air4Campus - IoT Air Quality Monitoring System
 
 ![Status](https://img.shields.io/badge/status-active-brightgreen)
 ![Python](https://img.shields.io/badge/Python-3.10+-blue)
-![License](https://img.shields.io/badge/license-MIT-lightgrey)
+![License](https://img.shields.io/badge/license-Apache%202.0-lightgrey)
 ![Render](https://img.shields.io/badge/Deploy-Render-orange)
 ![Grafana](https://img.shields.io/badge/Grafana-Dashboards-ff8800?logo=grafana)
 
-## Executive Summary
-**Air4Campus** is a lightweight IoT system designed to detect and monitor rapid changes in **temperature, humidity, and indoor gas concentration** in university classrooms. ESP32-based sensor nodes send real-time readings to a Flask backend, which stores all data in MongoDB (Atlas or local).  
-The system supports public deployment through Render, real-time dashboards in Grafana, and can be extended with alerting features for safety or anomaly detection.
+## Overview
 
----
+Air4Campus is a lightweight IoT system for monitoring indoor classroom conditions. ESP32 sensor nodes collect temperature, humidity, and air-quality readings, send them to a Flask API, and the API stores normalized readings in MongoDB for dashboards, querying, and comfort analysis.
 
-## Objectives
-- Measure and store indoor **temperature, humidity, and gas concentration** using sensors such as **MQ135** and **DHT11**.  
-- Provide HTTP endpoints to insert and retrieve sensor data.
-- Offer a simple test interface using a web form.
-- Support both local execution (via Docker or Python) and cloud deployment with Render.
-- Visualize system data through **Grafana dashboards**.
-- Enable future alerting systems (SMS, email, mobile notifications).
+The backend supports local MongoDB, MongoDB Atlas, Docker Compose, Render deployment, and Grafana dashboards through JSON-compatible endpoints.
 
----
+## Main Features
 
-## Hardware (Sensors)
+- Receives classroom sensor readings from ESP32 devices over HTTP.
+- Supports DHT11 temperature/humidity and MQ135 air-quality readings.
+- Accepts both a modern `sensors` array payload and legacy nested sensor fields.
+- Normalizes timestamps before storing data in MongoDB.
+- Stores `ts` as a MongoDB date and `timestamp_ms` as Unix epoch milliseconds.
+- Generates a server timestamp when the device does not send one.
+- Computes classroom comfort status: `optimal`, `regular`, or `critical`.
+- Produces recommendations and alerts for out-of-range conditions.
+- Exposes endpoints for recent readings and Grafana-style time-series queries.
+- Runs locally with Python or Docker Compose.
 
-| Sensor | Measures | Communication | Notes |
-|--------|----------|---------------|-------|
-| **MQ-135** | Gas concentration (approx. air quality) | Analog | Slow response but useful trend indicator |
-| **DHT11** | Temperature (°C), Humidity (%) | Digital | Simple and reliable for indoor use |
-| **ESP32** | Host microcontroller | WiFi | Sends JSON via HTTP |
+## Hardware
 
-Each device sends a JSON payload containing:
+| Component | Purpose | Notes |
+| --- | --- | --- |
+| ESP32 | Wi-Fi microcontroller | Sends JSON payloads to the Flask API |
+| DHT11 | Temperature and humidity | Simple indoor sensor |
+| MQ135 | Air-quality trend | Analog gas sensor; useful for relative changes |
 
-- `device_id`: unique device identifier  
-- `temperature`: `{ value, unit }`  
-- `humidity`: `{ value, unit }`  
-- `air_quality`: `{ value, unit }`  
-- `ts`: timestamp (optional; generated if missing)  
-- `meta`: optional metadata (location, notes, etc.)
+## Architecture
 
----
-
-## System Architecture
-
-### Simple Diagram (ASCII)
-
-```
-ESP32 ──> Flask API ──> MongoDB Atlas ──> Grafana
+```text
+ESP32 -> Flask API -> MongoDB Atlas/local MongoDB -> Grafana/API clients
 ```
 
----
+The source code follows a layered structure:
 
-## Tech Stack
-- Python 3.8+  
-- Flask  
-- MongoDB / MongoDB Atlas  
-- pymongo, dnspython, MicroPython
-- Docker + docker-compose (optional)  
-- Render (cloud hosting)
-
----
+- `entities`: domain models and classroom comfort rules.
+- `use_cases`: application workflows for receiving, querying, and analyzing readings.
+- `interface_adapters`: Flask controllers, JSON presenters, and sensor payload adapters.
+- `frameworks_drivers`: MongoDB, Flask app wiring, and ESP32 MicroPython code.
 
 ## API Endpoints
 
 | Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/receive_sensor_data` | Insert new sensor reading |
-| `GET`  | `/json_api_data` | List stored readings |
+| --- | --- | --- |
+| `GET` | `/` | Health check. Returns `OK`. |
+| `POST` | `/receive_sensor_data` | Stores a sensor reading and returns comfort analysis. |
+| `GET`/`POST` | `/json_api_data` | Returns recent readings. Optional `sensor` and `limit` filters. |
+| `POST` | `/search` | Returns available sensor labels for dashboard discovery. |
+| `POST` | `/query` | Returns Grafana-style time-series datapoints for a requested time range. |
 
----
+## Sensor Payload
 
-## Data Flow
-1. The ESP32 sends JSON data to `/receive_sensor_data`.  
-2. Flask validates and timestamps the payload.  
-3. MongoDB stores the data in the `data` collection.  
-4. Grafana visualizes real-time values and trends.
+Preferred payload:
 
----
+```json
+{
+  "device_id": "esp32_lab01",
+  "classroom_id": "B-204",
+  "classroom_type": "laboratory",
+  "timestamp_ms": 1763749730000,
+  "sensors": [
+    {
+      "type": "dht11",
+      "temperature": 26,
+      "humidity": 49
+    },
+    {
+      "type": "mq135",
+      "air_quality": 420
+    }
+  ]
+}
+```
 
-## Example Document Schema
+Legacy payloads are also accepted:
+
 ```json
 {
   "device_id": "esp32_lab01",
   "temperature": { "value": 26, "unit": "C" },
   "humidity": { "value": 49, "unit": "%" },
-  "air_quality": { "value": 0, "unit": "ratio" },
-  "ts": "2025-11-21T18:28:50Z"
+  "air_quality": { "value": 420, "unit": "ppm" }
 }
 ```
 
----
+## Timestamp Handling
 
-## Environment Variables
-Create a `.env` or add them in Render:
+The API accepts several timestamp field names so ESP32 firmware and clients can evolve without breaking the backend:
 
-```ini
-MONGO_URL=mongodb+srv://USER:PASS@cluster.mongodb.net/air4campus
-MONGO_DB=air4campus
-FLASK_ENV=production
-PORT=7001
+- `ts`
+- `timestamp`
+- `timestamp_ms`
+- `timestampMs`
+- `timesnap`
+- `time`
+- `hora`
+- `fecha`
+
+Accepted formats:
+
+- ISO 8601 strings, for example `2025-11-21T18:28:50Z`.
+- Unix epoch seconds, for example `1763749730`.
+- Unix epoch milliseconds, for example `1763749730000`.
+- Numeric strings with epoch seconds or milliseconds.
+
+MongoDB stores:
+
+- `ts`: normalized UTC MongoDB date, used for sorting and time-range queries.
+- `timestamp_ms`: numeric Unix epoch milliseconds, useful for frontend clients and debugging.
+
+If no timestamp is sent, the Flask backend uses the server receive time in UTC.
+
+## MongoDB Document Shape
+
+```json
+{
+  "ts": "2025-11-21T18:28:50Z",
+  "timestamp_ms": 1763749730000,
+  "device_id": "esp32_lab01",
+  "classroom_id": "B-204",
+  "classroom_type": "laboratory",
+  "temperature": { "value": 26, "unit": "C" },
+  "humidity": { "value": 49, "unit": "%" },
+  "air_quality": { "value": 420, "unit": "ppm" },
+  "comfort_analysis": {
+    "status": "regular",
+    "recommendations": ["Increase air renewal."],
+    "alerts": []
+  }
+}
 ```
 
-### `.env.example`
+## Environment Variables
+
+Create a `.env` file in the project root or configure these variables in Render:
+
 ```env
-# MongoDB Atlas connection
-MONGO_URL=
-
-# Database name
+MONGO_URL=mongodb+srv://USER:PASS@cluster.mongodb.net/air4campus
 MONGO_DB=air4campus
-
-# Flask settings
 FLASK_ENV=development
 PORT=7001
 ```
 
----
+For local Docker MongoDB, use a URL like:
 
-## Running Locally (Without Docker)
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r src/requirements.txt
-export MONGO_URL='mongodb+srv://USER:PASS@cluster.mongodb.net/air4campus'
-cd src
-python3 app.py
+```env
+MONGO_URL=mongodb://admin:admin123@mongo:27017/air4campus?authSource=admin
+MONGO_DB=air4campus
 ```
 
-Visit: http://localhost:7001/test-form
+## Run Locally with Python
 
----
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r src/requirements.txt
+export MONGO_URL="mongodb://localhost:27017/"
+export MONGO_DB="air4campus"
+cd src
+python app.py
+```
 
-## Running with Docker
+On Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+pip install -r src\requirements.txt
+$env:MONGO_URL = "mongodb://localhost:27017/"
+$env:MONGO_DB = "air4campus"
+Set-Location src
+python app.py
+```
+
+The API runs at `http://localhost:7001`.
+
+## Run with Docker Compose
+
 ```bash
 docker-compose up --build -d
 docker-compose logs -f web
 ```
 
-Backend at: http://localhost:7001
+Services:
 
----
+- Flask API: `http://localhost:7001`
+- MongoDB: `localhost:27017`
+- Mongo Express: `http://localhost:8081`
+- Grafana: `http://localhost:3000`
 
-## Sending Data (curl)
+## Send a Reading
+
 ```bash
-curl -X POST http://localhost:7001/api/data   -H "Content-Type: application/json"   -d '{
-        "device_id":"esp32_lab01",
-        "temperature":{"value":26,"unit":"C"},
-        "humidity":{"value":49,"unit":"%"},
-        "air_quality":{"value":0,"unit":"ratio"}
-      }'
+curl -X POST http://localhost:7001/receive_sensor_data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "device_id": "esp32_lab01",
+    "classroom_id": "B-204",
+    "classroom_type": "laboratory",
+    "timestamp_ms": 1763749730000,
+    "sensors": [
+      { "type": "dht11", "temperature": 26, "humidity": 49 },
+      { "type": "mq135", "air_quality": 420 }
+    ]
+  }'
 ```
 
----
+Example response:
+
+```json
+{
+  "ok": true,
+  "id": "656000000000000000000000",
+  "ts": 1763749730000,
+  "comfort": {
+    "status": "regular",
+    "recommendations": ["Increase air renewal."],
+    "alerts": []
+  }
+}
+```
+
+## Query Recent Data
+
+```bash
+curl "http://localhost:7001/json_api_data?sensor=temperature&limit=20"
+```
+
+Valid `sensor` filters:
+
+- `temperature`
+- `humidity`
+- `air_quality`
+
+If `sensor` is omitted, the endpoint returns recent full documents.
+
+## Grafana Integration
+
+The project includes endpoints that can be consumed by Grafana JSON data source plugins:
+
+- `/search` for metric discovery.
+- `/query` for time-series values.
+- `/json_api_data` for recent raw readings.
+
+Typical dashboard panels:
+
+- Temperature over time.
+- Relative humidity over time.
+- MQ135 air-quality trend.
+- Comfort status by classroom.
+- Critical alerts and recommendations.
+
+## ESP32 Firmware
+
+MicroPython files for the ESP32 live in `src/frameworks_drivers/sensors`.
+
+Important files:
+
+- `main.py`: Wi-Fi connection, sensor loop, and HTTP POST.
+- `config.example.py`: firmware configuration template.
+- `dht11_reader.py`: DHT11 reader.
+- `mq135_reader.py`: MQ135 reader.
+- `esp32_payload.py`: payload builder.
+
+The backend can timestamp readings automatically, so the ESP32 does not require an RTC to send valid data.
 
 ## Deployment on Render
-1. Create a Web Service.
-2. Add environment variables.
-3. Configure Python build.
-4. Allow Render IP in Atlas (or temporarily open access for testing).
 
----
-
-## Grafana Dashboards (Example Views)
-- Temperature time-series  
-- Humidity long-term trend  
-- Air-quality fluctuations (MQ135)  
-- Threshold-based anomalies  
-- Classroom comparison panels
-
----
+1. Create a Render Web Service.
+2. Point it to this repository.
+3. Use `src` as the application directory if needed.
+4. Install dependencies from `src/requirements.txt`.
+5. Set `MONGO_URL`, `MONGO_DB`, and `FLASK_ENV`.
+6. Allow Render network access in MongoDB Atlas.
 
 ## Future Improvements
-- Mobile/email alerts for sudden changes  
-- Classroom location mapping  
-- Multi-device aggregation  
-- Predictive trends using ML  
-- Better calibration of MQ135
 
----
+- Persist alert delivery through email, SMS, or push notifications.
+- Add authentication for write endpoints.
+- Add automated tests for payload adapters and comfort rules.
+- Add MongoDB indexes for large deployments.
+- Improve MQ135 calibration per classroom.
+- Add classroom maps and device management.
 
 ## License
 
-This project is licensed under the Apache License 2.0.
-
-See the LICENSE file for details.
+This project is licensed under the Apache License 2.0. See `LICENSE` for details.

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from entities.models import ClassroomConditions, ClassroomType, SensorValue
@@ -6,6 +6,8 @@ from interface_adapters.sensors.sensor_factory import SensorFactory
 
 
 class IoTSensorAdapter:
+    TIMESTAMP_FIELDS = ("ts", "timestamp", "timestamp_ms", "timestampMs", "timesnap", "time", "hora", "fecha")
+
     def __init__(self, sensor_factory: SensorFactory | None = None):
         self.sensor_factory = sensor_factory or SensorFactory()
 
@@ -13,7 +15,7 @@ class IoTSensorAdapter:
         values = self._adapt_sensor_values(payload)
 
         return ClassroomConditions(
-            ts=self._parse_timestamp(payload.get("ts")),
+            ts=self._now(),
             device_id=payload.get("device_id"),
             classroom_id=payload.get("classroom_id"),
             classroom_type=self._parse_classroom_type(payload.get("classroom_type")),
@@ -22,20 +24,51 @@ class IoTSensorAdapter:
             air_quality=values.get("air_quality", SensorValue.from_payload(payload.get("air_quality"))),
         )
 
+    def _timestamp_value(self, payload: dict[str, Any]) -> Any:
+        for field in self.TIMESTAMP_FIELDS:
+            value = payload.get(field)
+            if value is not None:
+                return value
+
+        return None
+
     def _parse_timestamp(self, value: Any) -> datetime:
         if isinstance(value, str):
+            numeric_value = self._parse_numeric_timestamp(value)
+            if numeric_value is not None:
+                return self._parse_timestamp(numeric_value)
+
             try:
-                return datetime.fromisoformat(value.replace("Z", "+00:00"))
+                return self._as_utc(datetime.fromisoformat(value.replace("Z", "+00:00")))
             except ValueError:
-                return datetime.utcnow()
+                return self._now()
 
         if value is None:
-            return datetime.utcnow()
+            return self._now()
 
         if isinstance(value, (int, float)):
-            return datetime.utcfromtimestamp(value)
+            timestamp_seconds = value / 1000 if abs(value) >= 1_000_000_000_000 else value
+            return datetime.fromtimestamp(timestamp_seconds, tz=timezone.utc)
 
-        return value
+        if isinstance(value, datetime):
+            return self._as_utc(value)
+
+        return self._now()
+
+    def _now(self) -> datetime:
+        return datetime.now(timezone.utc)
+
+    def _parse_numeric_timestamp(self, value: str) -> float | None:
+        try:
+            return float(value)
+        except ValueError:
+            return None
+
+    def _as_utc(self, value: datetime) -> datetime:
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+
+        return value.astimezone(timezone.utc)
 
     def _parse_classroom_type(self, value: Any) -> ClassroomType:
         try:

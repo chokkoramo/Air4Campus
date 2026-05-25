@@ -77,6 +77,7 @@ def create_routes(
                 {
                     "ok": True,
                     "id": result.inserted_id,
+                    "ts": int(conditions.ts.timestamp() * 1000),
                     "comfort": {
                         "status": result.status,
                         "recommendations": result.recommendations,

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -45,8 +45,11 @@ class ClassroomConditions:
     classroom_type: ClassroomType = ClassroomType.THEORETICAL
 
     def to_document(self) -> dict[str, Any]:
+        ts = self._normalized_ts()
+
         return {
-            "ts": self.ts,
+            "ts": ts,
+            "timestamp_ms": int(ts.timestamp() * 1000),
             "device_id": self.device_id,
             "classroom_id": self.classroom_id,
             "classroom_type": self.classroom_type.value,
@@ -54,6 +57,12 @@ class ClassroomConditions:
             "humidity": self.humidity.to_document(),
             "air_quality": self.air_quality.to_document(),
         }
+
+    def _normalized_ts(self) -> datetime:
+        if self.ts.tzinfo is None:
+            return self.ts.replace(tzinfo=timezone.utc)
+
+        return self.ts.astimezone(timezone.utc)
 
 
 @dataclass(frozen=True)
