@@ -67,13 +67,6 @@ class MongoSensorReadingRepository:
         result = self.collection.insert_one(document)
         return str(result.inserted_id)
 
-    def ping(self) -> dict[str, Any]:
-        self.collection.database.client.admin.command("ping")
-        return {
-            "database": self.collection.database.name,
-            "collection": self.collection.name,
-        }
-
 
 def create_sensor_repository() -> MongoSensorReadingRepository:
     db_name = _env("MONGO_DB", "test")

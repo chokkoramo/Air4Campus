@@ -16,6 +16,3 @@ class SensorReadingRepository(Protocol):
 
     def insert(self, conditions: ClassroomConditions, analysis: ComfortAnalysis | None = None) -> str:
         ...
-
-    def ping(self) -> dict[str, Any]:
-        ...

@@ -51,7 +51,6 @@ The source code follows a layered structure:
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | `GET` | `/` | Health check. Returns `OK`. |
-| `GET` | `/health/db` | Verifies the MongoDB Atlas connection and returns the active database and collection. |
 | `POST` | `/receive_sensor_data` | Stores a sensor reading and returns comfort analysis. |
 | `GET`/`POST` | `/json_api_data` | Returns recent readings. Optional `sensor` and `limit` filters. |
 | `POST` | `/search` | Returns available sensor labels for dashboard discovery. |

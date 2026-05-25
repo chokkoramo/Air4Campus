@@ -51,7 +51,6 @@ El código está organizado por capas:
 | Método | Endpoint | Descripción |
 | --- | --- | --- |
 | `GET` | `/` | Health check. Responde `OK`. |
-| `GET` | `/health/db` | Verifica la conexión con MongoDB Atlas y retorna la base y colección activas. |
 | `POST` | `/receive_sensor_data` | Guarda una lectura y retorna el análisis de confort. |
 | `GET`/`POST` | `/json_api_data` | Retorna lecturas recientes. Acepta filtros opcionales `sensor` y `limit`. |
 | `POST` | `/search` | Retorna etiquetas de sensores disponibles para dashboards. |
