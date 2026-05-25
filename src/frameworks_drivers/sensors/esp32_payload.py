@@ -1,3 +1,5 @@
+import time
+
 class ESP32PayloadBuilder:
     def __init__(self, device_id, classroom_id=None, classroom_type="theoretical"):
         self.device_id = device_id
