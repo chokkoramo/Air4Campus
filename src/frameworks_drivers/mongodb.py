@@ -6,6 +6,9 @@ from pymongo import MongoClient
 
 from entities.models import ClassroomConditions, ComfortAnalysis
 
+import dotenv
+
+dotenv.load_dotenv()
 
 class DatabaseConnection:
     _client: MongoClient | None = None
@@ -13,7 +16,7 @@ class DatabaseConnection:
     @classmethod
     def get_client(cls) -> MongoClient:
         if cls._client is None:
-            mongo_url = os.environ.get("MONGO_URL", "mongodb://localhost:27017/")
+            mongo_url = os.environ.get(dotenv.get("MONGO_URL", "mongodb://localhost:27017"))
             cls._client = MongoClient(mongo_url, serverSelectionTimeoutMS=5000)
 
         return cls._client
